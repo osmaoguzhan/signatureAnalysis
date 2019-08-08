@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -66,9 +68,12 @@ public class hex extends DataBase {
             for (File file : files) {
                 String newPath = path + "\\" + file.getName();
                 extension = newPath.substring(newPath.lastIndexOf(".") + 1);
+                System.out.println("FILE NAME IS " + file);
                 try {
                     hex = convertToHex(new File(newPath));
-                    getSignature(hex, extension);
+                    if (!extension.equalsIgnoreCase("txt")) {
+                        getSignature(hex, extension,file.getName());
+                    }
                 } catch (IOException ex) {
                     Logger.getLogger(hex.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -77,38 +82,55 @@ public class hex extends DataBase {
         }
     }
 
-    public void getSignature(StringBuilder hex, String extension) {
-        String extDB, description, hexDB;
+    public void getSignature(StringBuilder hex, String extension,String file) {
+        List description = new ArrayList();
+        List hexDB = new ArrayList();
+        List extDB = new ArrayList();
         try {
             connection_open();
             String query = "select hex,description,ext from signaturedb";
             preparedstatement = connection.prepareStatement(query);
             ResultSet rs = preparedstatement.executeQuery();
             while (rs.next()) {
-                hexDB = rs.getString("hex");
-                description = rs.getString("description");
-                extDB = rs.getString("ext");
-                //System.out.println(extDB);
-                String control = hex.substring(0, hexDB.length()).trim();
-                //System.out.println(control);
-                if (control.equals(hexDB)) {
-                    if (extension.equalsIgnoreCase(extDB)) {
-                        System.out.println("Extensions got matched!!");
-                        System.out.println("File's description is " + description);
-                        System.out.println("File's extension is " + extension + " and real one is " + extDB);
-                        System.out.println("---------------------------------------------------------------");
-                    } else {
-                        System.out.println("Extensions didn't match!!");
-                        System.out.println("File's extension is " + extension + " but real one is " + extDB);
-                        System.out.println("----------------------------------------------------------------");
-
-                    }
-                }
+                hexDB.add(rs.getString("hex"));
+                description.add(rs.getString("description"));
+                extDB.add(rs.getString("ext"));
             }
         } catch (SQLException e) {
             Logger.getLogger(hex.class.getName()).log(Level.SEVERE, null, e);
         } finally {
             connection_close();
         }
+        match(hexDB, extDB, description, hex, extension,file);
+
     }
+
+    public void match(List hexDB, List extDB, List description, StringBuilder hex, String ext,String file) {
+        int counter = 0;
+        for (int i = 0; i < hexDB.size(); i++) {
+            String control = hex.substring(0, hexDB.get(i).toString().length());
+            if (control.equalsIgnoreCase(hexDB.get(i).toString())) {
+                if (!extDB.get(i).toString().equalsIgnoreCase(ext)) {
+                    System.out.println("\u001b[41mDoesn't Match!!");
+                    System.out.println("\u001b[41mReal extension :" + extDB.get(i));
+                   // writeHTML(file,ext,extDB.get(i).toString(),description.get(i).toString());
+                } else {
+                    System.out.println("\u001b[42mEverything is OK!! There is no manipulation!!");
+                    System.out.println("----------------------------------------------");
+                    //writeHTML(file,ext,extDB.get(i).toString(),description.get(i).toString());
+                }
+            } else {
+                counter++;
+            }
+            if (counter == hexDB.size()) {
+                System.out.println("\u001b[41mThe signature couldn't found on DB!!");
+                System.out.println("--------------------------------------------------");
+                //writeHTML(file,ext,"Not Found on DB","Not Found on DB");
+            }
+        }
+
+    }
+   /* public void writeHTML(String fileName,String extension,String realExt,String Description){
+        
+    }*/
 }
